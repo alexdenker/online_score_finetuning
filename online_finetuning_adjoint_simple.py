@@ -151,7 +151,7 @@ batch_size = 128
 cond = torch.repeat_interleave(y_noise,  dim=0, repeats=batch_size)
 
 sde_model = SDE(model=model, sde=sde, cond=cond)
-t_size = 500
+t_size = 200
 
 optimizer = torch.optim.Adam(sde_model.time_model.parameters(), lr=1e-3)
 
@@ -178,9 +178,9 @@ for i in range(1000):
 
     f_sq = ys[-1, :, -1]
     #loss = torch.sum(logpq**2) + 1/2*torch.sum((Afwd(ys) - y_noise)**2)
-    loss_data = 1/2 * torch.mean(torch.sum((ys_img - x_target)**2, dim=(1,2,3)))
+    loss_data = 1/2*torch.mean(torch.sum((Afwd(ys_img) - cond)**2, dim=1)) #1/2 * torch.mean(torch.sum((ys_img - x_target)**2, dim=(1,2,3)))
     print(loss_data, torch.mean(f_sq))
-    loss = loss_data + torch.mean(f_sq) #1/2*torch.mean((Afwd(ys) - y_noise)**2)
+    loss = loss_data + torch.mean(f_sq) 
     print(loss.item())
     loss.backward()
 
@@ -193,7 +193,7 @@ for i in range(1000):
     ax1.set_title(f"loss: {loss.item()}")
     ax1.imshow(x_target[0,0,:,:].cpu().numpy(), cmap="gray")
     ax2.imshow(img_grid[0,:,:].numpy(), cmap="gray")
-    plt.savefig(f"adjoint_test_imgs/iter_{i}.png")
+    plt.savefig(f"adjoint_test_imgs_fwd/iter_{i}.png")
 
     plt.close()
 

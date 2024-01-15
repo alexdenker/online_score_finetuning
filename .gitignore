@@ -6,4 +6,6 @@
 
 /adjoint_test_imgs
 
+/adjoint_test_imgs_fwd
+
 *.pyc

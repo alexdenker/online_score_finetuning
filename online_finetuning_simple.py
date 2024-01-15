@@ -95,7 +95,7 @@ class SDE(torch.nn.Module):
     noise_type = 'diagonal'
     sde_type = 'ito'
 
-    def __init__(self, model, sde, cond):
+    def __init__(self, model, sde, y_noise):
         super().__init__()
         self.noise_type = "diagonal"
         self.sde_type = "ito"
@@ -111,7 +111,7 @@ class SDE(torch.nn.Module):
         self.time_model.to("cuda")
         self.time_model.train() 
 
-        self.cond = cond
+        self.y_noise = y_noise
     # Drift
     def f(self, t, y):
         y = y[:, :-1]
@@ -122,8 +122,10 @@ class SDE(torch.nn.Module):
         
         s_pretrained = self.model(y.view(y.shape[0], 1, 28,28), 1.0 - t)
         
+        cond = torch.repeat_interleave(self.y_noise,  dim=0, repeats=y.shape[0])
+
         time_cond = self.time_model(1.0 - t.unsqueeze(1))
-        s_new = - time_cond[:,None,None]*Abwd(Afwd(y.view(y.shape[0], 1, 28,28)) - self.cond)/torch.max(self.model.marginal_prob_std(1.0 - t)[:, None, None, None], torch.tensor(0.05,device=y.device))
+        s_new = - time_cond[:,None,None]*Abwd(Afwd(y.view(y.shape[0], 1, 28,28)) - cond)/torch.max(self.model.marginal_prob_std(1.0 - t)[:, None, None, None], torch.tensor(0.05,device=y.device))
 
         s = s_pretrained + s_new
 
@@ -148,9 +150,8 @@ class SDE(torch.nn.Module):
 
 batch_size = 4
 
-cond = torch.repeat_interleave(y_noise,  dim=0, repeats=batch_size)
 
-sde_model = SDE(model=model, sde=sde, cond=cond)
+sde_model = SDE(model=model, sde=sde, y_noise=y_noise)
 t_size = 80
 
 optimizer = torch.optim.Adam(sde_model.time_model.parameters(), lr=1e-3)
@@ -178,9 +179,10 @@ for i in range(1000):
 
     f_sq = ys[-1, :, -1]
     #loss = torch.sum(logpq**2) + 1/2*torch.sum((Afwd(ys) - y_noise)**2)
-    loss_data = 1/2 * torch.mean(torch.sum((ys_img - x_target)**2, dim=(1,2,3)))
+    cond = torch.repeat_interleave(y_noise,  dim=0, repeats=batch_size)
+    loss_data = 1/2*torch.mean(torch.sum((Afwd(ys_img) - cond)**2, dim=1))  #1/2 * torch.mean(torch.sum((ys_img - x_target)**2, dim=(1,2,3)))
     print(loss_data, torch.mean(f_sq))
-    loss = loss_data + torch.mean(f_sq) #1/2*torch.mean((Afwd(ys) - y_noise)**2)
+    loss = loss_data + torch.mean(f_sq) 
     print(loss.item())
     loss.backward()
 
@@ -189,30 +191,41 @@ for i in range(1000):
     img_grid = make_grid(ys_img.cpu(), n_row=4)
 
     fig, (ax1, ax2) = plt.subplots(1,2)
+    ax1.set_title(f"loss: {loss.item()}")
     ax1.imshow(x_target[0,0,:,:].cpu().numpy(), cmap="gray")
     ax2.imshow(img_grid[0,:,:].numpy(), cmap="gray")
     plt.savefig(f"test_imgs/iter_{i}.png")
     plt.close()
 
-    """
-    if i % 5 == 0:# and i > 0:
+    
+    if i % 2 == 0 and i > 0:
         with torch.no_grad():
-            y0 = torch.randn((batch_size, 784)).to("cuda")
-            y0 = torch.cat([y0, torch.zeros((batch_size, 1), device=y0.device)], dim=1)
+            y0 = torch.randn((64, 784)).to("cuda")
+            y0 = torch.cat([y0, torch.zeros((64, 1), device=y0.device)], dim=1)
 
-            ts = torch.linspace(0, 1 - 1.e-3, t_size).to("cuda")
+            ts = torch.linspace(0, 1 - 1.e-3, 600).to("cuda")
             #ys, logpq = torchsde.sdeint_adjoint(sde_model, y0, ts, method='euler', logqp=True)
             #ys = torchsde.sdeint_adjoint(sde_model, y0, ts, method='euler',adjoint_method="euler", dt=0.01)
-            ys = torchsde.sdeint(sde_model, y0, ts, method='euler',dt=ts[1] - ts[0], bm=bm)
+            ys = torchsde.sdeint(sde_model, y0, ts, method='euler',dt=ts[1] - ts[0])
 
             #print(logpq.shape)
             ys = ys[-1, :, :-1]
-            ys = ys.view(batch_size, 1, 28, 28)
+            ys = ys.view(64, 1, 28, 28)
+
+            t = torch.linspace(1,0,500).to("cuda").unsqueeze(1)
+            t_weight = sde_model.time_model(t)
 
         img_grid = make_grid(ys.cpu(), n_row=4)
-        #print(x_mean.shape, img_grid.shape)
-        plt.figure()
-        plt.imshow(img_grid[0,:,:].numpy(), cmap="gray")
-        plt.show()
 
-    """
+        fig, (ax1, ax2, ax3) = plt.subplots(1,3, figsize=(16,8))
+        ax1.imshow(x_target[0,0,:,:].cpu().numpy(), cmap="gray")
+        ax1.axis("off")
+        ax2.imshow(img_grid[0,:,:].numpy(), cmap="gray")
+        ax2.axis("off")
+        ax3.plot(t[:,0].cpu().numpy(), t_weight[:,0].cpu().numpy())
+        ax3.set_xlabel("t")
+        ax3.set_title("NN(t)")
+        plt.savefig(f"test_imgs/val_iter_{i}.png")
+        plt.close()
+
+    
