@@ -27,29 +27,11 @@ from tqdm import tqdm
 
 from src import TinyUnet, VPSDE, BaseSampler, Euler_Maruyama_sde_predictor
 
+base_path = "model_weights"
 
-cfg_dict = { 
-    "model":
-    {"time_embedding_dim": 256,
-     "in_channels": 1,
-     "out_channels": 1,
-     "base_dim": 64,
-     "dim_mults": [2,4],
-     "max_period": 0.005},
-    "diffusion":
-    {"sde": "VPSDE",
-    "beta_min": 0.1,
-    "beta_max": 20,
-    },
-    "training":
-    {"num_epochs": 100,
-     "batch_size": 128,
-     "lr": 1e-4},
-    "sampling": 
-    {"num_steps": 1000,
-    "eps": 1e-5,
-    "batch_size": 16}
-}
+
+with open(os.path.join(base_path, "report.yaml"), "r") as f:
+    cfg_dict = yaml.safe_load(f)
 
 sde = VPSDE(beta_min=cfg_dict["diffusion"]["beta_min"], 
             beta_max=cfg_dict["diffusion"]["beta_max"]

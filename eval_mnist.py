@@ -16,28 +16,11 @@ from tqdm import tqdm
 from src import TinyUnet, VPSDE, BaseSampler, Euler_Maruyama_sde_predictor
 
 
-cfg_dict = { 
-    "model":
-    {"time_embedding_dim": 256,
-     "in_channels": 1,
-     "out_channels": 1,
-     "base_dim": 64,
-     "dim_mults": [2,4],
-     "max_period": 0.005},
-    "diffusion":
-    {"sde": "VPSDE",
-    "beta_min": 0.1,
-    "beta_max": 20,
-    },
-    "training":
-    {"num_epochs": 100,
-     "batch_size": 128,
-     "lr": 1e-4},
-    "sampling": 
-    {"num_steps": 1000,
-    "eps": 1e-5,
-    "batch_size": 16}
-}
+base_path = "model_weights"
+
+
+with open(os.path.join(base_path, "report.yaml"), "r") as f:
+    cfg_dict = yaml.safe_load(f)
 
 sde = VPSDE(beta_min=cfg_dict["diffusion"]["beta_min"], 
             beta_max=cfg_dict["diffusion"]["beta_max"]
@@ -73,14 +56,7 @@ x_mean = sampler.sample().cpu()
 
 x_mean = torch.clamp(x_mean.cpu(), 0, 1)
 
-#save_image(x_mean, os.path.join(log_dir, f"sample_at_{epoch}.png"),nrow=4)
-    #plt.figure()
-    #plt.imshow(x_mean[0,0,:,:].cpu().numpy(), cmap="gray")
-    #plt.show() 
-
 img_grid = make_grid(x_mean, n_row=4)
-print(img_grid.shape)
-#print(x_mean.shape, img_grid.shape)
 plt.figure()
 plt.imshow(img_grid[0,:,:].numpy(), cmap="gray")
 plt.show()
