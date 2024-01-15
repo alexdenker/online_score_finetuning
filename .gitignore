@@ -2,4 +2,8 @@
 
 /mnist_data 
 
+/test_imgs
+
+/adjoint_test_imgs
+
 *.pyc

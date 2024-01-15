@@ -144,7 +144,7 @@ cond = torch.repeat_interleave(y_noise,  dim=0, repeats=batch_size)
 sde_model = SDE(model=model, sde=sde, cond=cond)
 
 y0 = torch.randn((batch_size, 784)).to("cuda")
-t_size = 2000
+t_size = 500
 ts = torch.linspace(0, 1 - 1.e-3, t_size).to("cuda")
 # Initial state y0, the SDE is solved over the interval [ts[0], ts[-1]].
 # ys will have shape (t_size, batch_size, state_size)
