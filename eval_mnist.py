@@ -36,9 +36,6 @@ model = TinyUnet(
             dim_mults=cfg_dict["model"]["dim_mults"])
 model.load_state_dict(torch.load("model_weights/model.pt"))
 model.to("cuda")
-
-
-
 model.eval() 
 
 
@@ -47,7 +44,7 @@ sampler = BaseSampler(
         sde=sde,
         sampl_fn=Euler_Maruyama_sde_predictor,
         sample_kwargs={"batch_size": cfg_dict["sampling"]["batch_size"], 
-                        "num_steps": 1200, #,cfg_dict["sampling"]["num_steps"],
+                        "num_steps": 2000, #,cfg_dict["sampling"]["num_steps"],
                         "im_shape": [1,28,28],
                         "eps": cfg_dict["sampling"]["eps"] },
         device="cuda")

@@ -15,4 +15,5 @@ The solver takes a vector of time steps as an input (**ts**). But apparently the
 
 ## Examples 
 
-1. test_torchsde.py: Simple Euler-Maruyama solver to draw samples from a pre-trained MNIST model.
+1. test_torchsde.py: Euler-Maruyama from **torchsde** to draw unconditional samples from a pre-trained MNIST model.
+2. eval_mnist.py: simple implementation of Euler-Maruyama to draw unconditional samples from a pre-trained MNIST model.
