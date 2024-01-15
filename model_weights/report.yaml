@@ -1,0 +1,21 @@
+diffusion:
+  beta_max: 20
+  beta_min: 0.1
+  sde: VPSDE
+model:
+  base_dim: 64
+  dim_mults:
+  - 2
+  - 4
+  in_channels: 1
+  max_period: 0.005
+  out_channels: 1
+  time_embedding_dim: 256
+sampling:
+  batch_size: 16
+  eps: 1.0e-05
+  num_steps: 1000
+training:
+  batch_size: 128
+  lr: 0.0001
+  num_epochs: 100
