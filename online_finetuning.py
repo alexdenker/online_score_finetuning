@@ -140,12 +140,12 @@ class CondSDE(torch.nn.Module):
 
             s = s_pretrained + s_new
 
-            drift, diffusion = self.sde.sde(x_t[-1], t)
+            drift, diffusion = self.sde.sde(x_t[-1], t) # diffusion = sqrt(beta)
 
             f_t = drift - diffusion[:, None, None, None].pow(2)*s
 
             f_sq = (s_new ** 2).sum(dim=(1,2,3)).unsqueeze(1)
-            kldiv = kldiv + dt.abs() * f_sq * diffusion.pow(2)
+            kldiv = kldiv + 0.5*dt.abs() * f_sq * diffusion.pow(2)
 
             g_t = diffusion[:, None, None, None]
             x_t.append(x_t[-1] + f_t * dt + g_t * dW)
@@ -212,7 +212,7 @@ with wandb.init(**wandb_kwargs) as run:
 
         cond = torch.repeat_interleave(y_noise,  dim=0, repeats=batch_size)
         loss_data = 1/2*1/noise_level**2*torch.mean(torch.sum((forward_op.A(xt[-1]) - cond)**2, dim=(1,2,3)))  
-        loss_kldiv = 0.5*kldiv.mean()
+        loss_kldiv = kldiv.mean()
         loss = loss_data + loss_kldiv
 
         wandb.log(
