@@ -28,7 +28,7 @@ from tqdm import tqdm
 from src import TinyUnet, VPSDE, Tomography
 
 cfg = {
-    'batch_size': 64,
+    'batch_size': 32,
     'time_steps': 70,
     'lr': 1e-3,
     'num_steps':  1000,
@@ -190,7 +190,10 @@ with wandb.init(**wandb_kwargs) as run:
     batch_size = cfg["batch_size"]
     sde_model = CondSDE(model=model, sde=sde, y_noise=y_noise)
     t_size = cfg["time_steps"]
+
+    k = torch.nn.Parameter(torch.zeros(1, device="cuda"))
     optimizer = torch.optim.Adam(list(sde_model.cond_model.parameters()) + list(sde_model.time_model.parameters()), lr=cfg["lr"])
+
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.9)
 
     x_target = x_gt.repeat(batch_size, 1, 1, 1)
@@ -264,7 +267,7 @@ with wandb.init(**wandb_kwargs) as run:
         original_loss = (loss_data - kldiv_term1).mean()
 
         #print(loss)
-        loss = torch.var(loss)
+        loss = torch.mean((loss - k)**2)
         print("var loss: ", loss)
 
         wandb.log(
@@ -298,7 +301,9 @@ with wandb.init(**wandb_kwargs) as run:
         wandb.log(
                     {"train/loss_kldiv": loss_kl.mean().item(), "step": i}
                 ) 
-
+        wandb.log(
+                    {"train/k": k.item(), "step": i}
+                ) 
         mse_target = torch.mean((xt[-1] - x_target)**2)
         wandb.log(
                     {"train/mse_to_target": mse_target.item(), "step": i}
@@ -310,7 +315,9 @@ with wandb.init(**wandb_kwargs) as run:
             torch.nn.utils.clip_grad_norm_(sde_model.cond_model.parameters(), cfg['clip_value'])
             torch.nn.utils.clip_grad_norm_(sde_model.time_model.parameters(), cfg['clip_value'])
         optimizer.step()
-
+        with torch.no_grad():
+            k -= 0.005 * k.grad
+        print(k)
         scheduler.step()
         wandb.log(
                     {"train/learning_rate": float(scheduler.get_last_lr()[0]), "step": i}
